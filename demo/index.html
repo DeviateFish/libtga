@@ -14,7 +14,7 @@
     <h1>libtga demo</h1>
 
     <!-- begin demo markup -->
-
+    <canvas id="screen"></canvas>
     <!-- end demo markup -->
 
     <p>See the <a href="http://DeviateFish.github.io/libtga">project homepage</a>.
@@ -25,10 +25,16 @@
 
     <script>
       /* begin demo script */
-
-      var n = libtga();
-      console.log(n);
-
+      libtga.loadFile('/objectXMTexture.tga', function(err, img){
+        if(err) throw err;
+        var canvas = document.getElementById('screen');
+        var context = canvas.getContext('2d');
+        var imageData = context.createImageData(img.width, img.height);
+        imageData.data.set(img.imageData);
+        canvas.height = img.height;
+        canvas.width = img.width;
+        context.putImageData(imageData, 0, 0);
+      });
       /* end demo script */
     </script>
   </body>
