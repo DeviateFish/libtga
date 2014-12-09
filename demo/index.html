@@ -24,16 +24,21 @@
 
     <script>
       /* begin demo script */
-      libtga.loadFile('/objectXMTexture.tga', function(err, img){
-        if(err) throw err;
-        var canvas = document.getElementById('screen');
-        var context = canvas.getContext('2d');
-        var imageData = context.createImageData(img.width, img.height);
-        imageData.data.set(img.imageData);
-        canvas.height = img.height;
-        canvas.width = img.width;
-        context.putImageData(imageData, 0, 0);
-      });
+      var showFile = function(filename) {
+        libtga.loadFile(filename, function(err, img){
+          if(err) throw err;
+          console.log(img);
+          var canvas = document.getElementById('screen');
+          var context = canvas.getContext('2d');
+          var imageData = context.createImageData(img.width, img.height);
+          imageData.data.set(img.imageData);
+          canvas.height = img.height;
+          canvas.width = img.width;
+          context.putImageData(imageData, 0, 0);
+        });
+      };
+
+      showFile('/objectXMTexture.tga');
       /* end demo script */
     </script>
   </body>

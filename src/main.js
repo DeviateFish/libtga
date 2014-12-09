@@ -23,9 +23,15 @@ var HEADER_SIZE = 18,
   COLOR_MAP_DEV_END = 255|0,*/
 
   // image descriptor constants:
-  IMAGE_DESCRIPTOR_ATTRIBUTE_MASK = 0x7,
-  IMAGE_DESCRIPTOR_ORIGIN_UPPER = 0x20,
-  IMAGE_DESCRIPTOR_INTERLEAVE_MASK = 0xc0;
+  IMAGE_DESCRIPTOR_ATTRIBUTE_MASK = 0xf,
+  IMAGE_DESCRIPTOR_ORIGIN_MASK = 0x30,
+  IMAGE_DESCRIPTOR_INTERLEAVE_MASK = 0xc0,
+
+  // Origin values:
+  IMAGE_ORIGIN_VERTICAL_MASK = 0x02,
+  IMAGE_ORIGIN_HORIZONTAL_MASK = 0x01,
+  IMAGE_ORIGIN_TOP = 0x02,
+  IMAGE_ORIGIN_RIGHT = 0x01;
 
 var TGA = function(arraybuf)
 {
@@ -36,7 +42,7 @@ var TGA = function(arraybuf)
   this.compressed = !!(this.header.imageType & IMAGE_RUNLENGTH_ENCODED);
   this.imageId = TGA.readImageId(this.dataview, this.header);
   this.colorMap = TGA.readColorMap(this.dataview, this.header);
-  this.imageData = TGA.readImage(this.dataview, this.header);
+  this.imageData = TGA.readImage(this);
 };
 
 // add constant refs here:
@@ -63,10 +69,12 @@ TGA.readHeader = function(dataview)
 
 TGA.readColorMapSpec = function(dataview, offset)
 {
+  var bits = dataview.getUint8(offset+4, true);
   var colorMapSpec = {
     firstEntry: dataview.getUint16(offset, true),
-    colorMapLength: dataview.getUint16(offset+2, true),
-    colorMapEntrySize: dataview.getUint8(offset+4, true)
+    length: dataview.getUint16(offset+2, true),
+    entrySizeBits: bits,
+    entrySizeBytes: Math.floor((bits + 7) / 8)
   };
   return colorMapSpec;
 };
@@ -82,7 +90,7 @@ TGA.readImageSpec = function(dataview, offset)
     pixelDepth: dataview.getUint8(offset+8),
     descriptor: descriptor,
     attributeBits: descriptor & IMAGE_DESCRIPTOR_ATTRIBUTE_MASK,
-    originUpper: (descriptor & IMAGE_DESCRIPTOR_ORIGIN_UPPER) == IMAGE_DESCRIPTOR_ORIGIN_UPPER,
+    origin: (descriptor & IMAGE_DESCRIPTOR_ORIGIN_MASK) >> 4,
     interleave: (descriptor & IMAGE_DESCRIPTOR_INTERLEAVE_MASK) >> 6
   };
   return imageSpec;
@@ -95,83 +103,310 @@ TGA.readImageId = function(dataview, header)
 
 TGA.readColorMap = function(dataview, header)
 {
-  // stub:
-  return new Uint8Array(
-    dataview.buffer,
-    HEADER_SIZE + header.idLength,
-    header.colorMapSpec.colorMapLength * header.colorMapSpec.colorMapEntrySize);
+  if(header.colorMapSpec.length <= 0)
+  {
+    return null;
+  }
+  var colorMap = new Uint8ClampedArray(header.colorMapSpec.length * 4),
+    read = null,
+    offset = HEADER_SIZE + header.idLength;
+
+  switch(header.colorMapSpec.entrySizeBits) {
+    case 8:
+      read = TGA.readPixel8;
+      break;
+    case 16:
+      read = TGA.readPixel15;
+      break;
+    case 15:
+      read = TGA.readPixel16;
+      break;
+    case 24:
+      read = TGA.readPixel24;
+      break;
+    case 32:
+      read = TGA.readPixel32;
+      break;
+    default:
+      throw 'Unsupported pixel depth';
+  }
+
+  for(var i = 0; i < header.colorMapSpec.length; i++)
+  {
+    read(dataview, offset, i, colorMap, i);
+  }
+
+  return colorMap;
 };
 
-TGA.readPixel15 = function(dataview, offset, i, pixels)
+TGA.readPixel8 = function(input, offset, i, output, j)
 {
-  var chunk = dataview.getUint16(offset + (i * 2), true);
-  pixels[i * 4 + 2] = chunk & 0x1f; // blue
-  pixels[i * 4 + 1] = (chunk >> 5) & 0x1f; // green
-  pixels[i * 4 + 0] = (chunk >> 10) & 0x1f; // red
-  pixels[i * 4 + 3] = 255; // alpha
+  var byte = input.getUint8(offset + i);
+  output[j * 4 + 2] = byte; // blue
+  output[j * 4 + 1] = byte; // green
+  output[j * 4 + 0] = byte; // red
+  output[j * 4 + 3] = 255; // alpha
 };
 
-TGA.readPixel16 = function(dataview, offset, i, pixels)
+TGA.readPixel15 = function(input, offset, i, output, j)
 {
-  var chunk = dataview.getUint16(offset + (i * 2), true);
-  pixels[i * 4 + 2] = chunk & 0x1f; // blue
-  pixels[i * 4 + 1] = (chunk >> 5) & 0x1f; // green
-  pixels[i * 4 + 0] = (chunk >> 10) & 0x1f; // red
-  pixels[i * 4 + 3] = (chunk & 0x80) == 0x80 ? 255 : 0; // alpha
+  var chunk = input.getUint16(offset + (i * 2), true);
+  output[j * 4 + 2] = (chunk & 0x1f) << 3; // blue
+  output[j * 4 + 1] = ((chunk >> 5) & 0x1f) << 3; // green
+  output[j * 4 + 0] = ((chunk >> 10) & 0x1f) << 3; // red
+  output[j * 4 + 3] = 255; // alpha
 };
 
-TGA.readPixel24 = function(dataview, offset, i, pixels)
+TGA.readPixel16 = function(input, offset, i, output, j)
 {
-  pixels[i * 4 + 2] = dataview.getUint8(offset + (i * 3) + 0); //blue
-  pixels[i * 4 + 1] = dataview.getUint8(offset + (i * 3) + 1); //green
-  pixels[i * 4 + 0] = dataview.getUint8(offset + (i * 3) + 2); //red
-  pixels[i * 4 + 3] = 255;
+  var chunk = input.getUint16(offset + (i * 2), true);
+  output[j * 4 + 2] = (chunk & 0x1f) << 3; // blue
+  output[j * 4 + 1] = ((chunk >> 5) & 0x1f) << 3; // green
+  output[j * 4 + 0] = ((chunk >> 10) & 0x1f) << 3; // red
+  output[j * 4 + 3] = (chunk & 0x80) == 0x80 ? 255 : 0; // alpha
 };
 
-TGA.readPixel32 = function(dataview, offset, i, pixels)
+TGA.readPixel24 = function(input, offset, i, output, j)
 {
-  pixels[i * 4 + 2] = dataview.getUint8(offset + (i * 4) + 0); //blue
-  pixels[i * 4 + 1] = dataview.getUint8(offset + (i * 4) + 1); //green
-  pixels[i * 4 + 0] = dataview.getUint8(offset + (i * 4) + 2); //red
-  pixels[i * 4 + 3] = dataview.getUint8(offset + (i * 4) + 3); // alpha
+  output[j * 4 + 2] = input.getUint8(offset + (i * 3) + 0); //blue
+  output[j * 4 + 1] = input.getUint8(offset + (i * 3) + 1); //green
+  output[j * 4 + 0] = input.getUint8(offset + (i * 3) + 2); //red
+  output[j * 4 + 3] = 255;
 };
 
-TGA.readImage = function(dataview, header)
+TGA.readPixel32 = function(input, offset, i, output, j)
 {
-  // I'm thinking I should store pixel data as Uint8Array,
-  // 4 elements per pixel... i.e. full-blown 32-bit color, regardless
-  // for tgas without attributes (alpha?), default alpha to 255?
-  var width = header.imageSpec.width,
+  output[j * 4 + 2] = input.getUint8(offset + (i * 4) + 0); //blue
+  output[j * 4 + 1] = input.getUint8(offset + (i * 4) + 1); //green
+  output[j * 4 + 0] = input.getUint8(offset + (i * 4) + 2); //red
+  output[j * 4 + 3] = 255;//input.getUint8(offset + (i * 4) + 3); // alpha
+};
+
+TGA.readMappedPixel8 = function(input, map, mapOffset, offset, i, output, j)
+{
+  var index = input.getUint8(offset + i) + mapOffset;
+  output[j * 4 + 0] = map[index * 4 + 0]; // blue
+  output[j * 4 + 1] = map[index * 4 + 1]; // green
+  output[j * 4 + 2] = map[index * 4 + 2]; // red
+  output[j * 4 + 3] = map[index * 4 + 3]; // alpha
+};
+
+// not sure these need to be separate functions...
+TGA.readMappedPixel15 = function(input, map, mapOffset, offset, i, output, j)
+{
+  var index = input.getUint16(offset + (i * 2), true) + mapOffset;
+  output[j * 4 + 0] = map[index * 4 + 0]; // blue
+  output[j * 4 + 1] = map[index * 4 + 1]; // green
+  output[j * 4 + 2] = map[index * 4 + 2]; // red
+  output[j * 4 + 3] = map[index * 4 + 3]; // alpha
+};
+
+TGA.readMappedPixel16 = function(input, map, mapOffset, offset, i, output, j)
+{
+  var index = input.getUint16(offset + (i * 2), true) + mapOffset;
+  output[j * 4 + 0] = map[index * 4 + 0]; // blue
+  output[j * 4 + 1] = map[index * 4 + 1]; // green
+  output[j * 4 + 2] = map[index * 4 + 2]; // red
+  output[j * 4 + 3] = map[index * 4 + 3]; // alpha
+};
+
+// is this even valid?
+TGA.readMappedPixel24 = function(input, map, mapOffset, offset, i, output, j)
+{
+  var index = input.getUint16(offset + (i * 2), true) + mapOffset; // uhhhhh
+  output[j * 4 + 0] = map[index * 4 + 0]; // blue
+  output[j * 4 + 1] = map[index * 4 + 1]; // green
+  output[j * 4 + 2] = map[index * 4 + 2]; // red
+  output[j * 4 + 3] = map[index * 4 + 3]; // alpha
+};
+
+// is this even valid, either?
+TGA.readMappedPixel32 = function(input, map, mapOffset, offset, i, output, j)
+{
+  var index = input.getUint16(offset + (i * 2), true) + mapOffset; // uhhhhh
+  output[j * 4 + 0] = map[index * 4 + 0]; // blue
+  output[j * 4 + 1] = map[index * 4 + 1]; // green
+  output[j * 4 + 2] = map[index * 4 + 2]; // red
+  output[j * 4 + 3] = map[index * 4 + 3]; // alpha
+};
+
+TGA.readRLEImage = function(tga)
+{
+  console.log(tga.dataview, tga.header);
+  throw 'NYI';
+};
+
+TGA.readColormappedImage = function(tga)
+{
+  var dataview = tga.dataview,
+    header = tga.header,
+    colorMap = tga.colorMap,
+    width = header.imageSpec.width,
     height = header.imageSpec.height,
     pixels = new Uint8ClampedArray(width * height * 4),
     pixelDepth = header.imageSpec.pixelDepth,
     offset = HEADER_SIZE + header.idLength +
-      (header.colorMapSpec.colorMapLength * header.colorMapSpec.colorMapEntrySize),
-    read = null;
+      (header.colorMapSpec.length * header.colorMapSpec.entrySizeBytes),
+    mapOffset = header.colorMapSpec.firstEntry,
+    read = null,
+    vScanDir = (header.imageSpec.origin & IMAGE_ORIGIN_VERTICAL_MASK) === IMAGE_ORIGIN_TOP ? 1 : -1,
+    hScanDir = (header.imageSpec.origin & IMAGE_ORIGIN_HORIZONTAL_MASK) === IMAGE_ORIGIN_RIGHT ? -1 : 1;
+
+  if(!colorMap)
+  {
+    throw 'Image is described as color-mapped, but has no map';
+  }
 
   switch(pixelDepth) {
-      case 16:
-        read = TGA.readPixel15;
-        break;
-      case 15:
-        read = TGA.readPixel16;
-        break;
-      case 24:
-        read = TGA.readPixel24;
-        break;
-      case 32:
-        read = TGA.readPixel32;
-        break;
-      default:
-        throw 'Unsupported pixel depth';
-    }
+    case 8:
+      read = TGA.readMappedPixel8;
+      break;
+    case 16:
+      read = TGA.readMappedPixel15;
+      break;
+    case 15:
+      read = TGA.readMappedPixel16;
+      break;
+    case 24:
+      read = TGA.readMappedPixel24;
+      break;
+    case 32:
+      read = TGA.readMappedPixel32;
+      break;
+    default:
+      throw 'Unsupported pixel depth';
+  }
 
-  for(var i = 0; i < width * height; i++)
+  var vStart, vEnd, hStart, hEnd;
+  if(vScanDir > 0)
   {
-    read(dataview, offset, i, pixels);
+    vStart = 0;
+    vEnd = height - 1;
+  }
+  else
+  {
+    vStart = height - 1;
+    vEnd = 0;
+  }
+
+  if(hScanDir > 0)
+  {
+    hStart = 0;
+    hEnd = width - 1;
+  }
+  else
+  {
+    hStart = width - 1;
+    hEnd = 0;
+  }
+
+  // output is always top->bottom, left->right, so:
+  var row = 0, col;
+  for(var i = vStart; i != vEnd; i += vScanDir)
+  {
+    col = 0;
+    for(var j = hStart; j != hEnd; j += hScanDir)
+    {
+      read(dataview, colorMap, mapOffset, offset, i * width + j, pixels, row * width + col++);
+    }
+    row++;
   }
 
   return pixels;
+};
+
+TGA.readTruecolorImage = function(tga)
+{
+  var header = tga.header,
+    dataview = tga.dataview,
+    width = header.imageSpec.width,
+    height = header.imageSpec.height,
+    pixels = new Uint8ClampedArray(width * height * 4),
+    pixelDepth = header.imageSpec.pixelDepth,
+    offset = HEADER_SIZE + header.idLength +
+      (header.colorMapSpec.length * header.colorMapSpec.entrySizeBytes),
+    read = null,
+    vScanDir = (header.imageSpec.origin & IMAGE_ORIGIN_VERTICAL_MASK) === IMAGE_ORIGIN_TOP ? 1 : -1,
+    hScanDir = (header.imageSpec.origin & IMAGE_ORIGIN_HORIZONTAL_MASK) === IMAGE_ORIGIN_RIGHT ? -1 : 1;
+
+  switch(pixelDepth) {
+    case 8:
+      read = TGA.readPixel8;
+      break;
+    case 16:
+      read = TGA.readPixel15;
+      break;
+    case 15:
+      read = TGA.readPixel16;
+      break;
+    case 24:
+      read = TGA.readPixel24;
+      break;
+    case 32:
+      read = TGA.readPixel32;
+      break;
+    default:
+      throw 'Unsupported pixel depth';
+  }
+  var vStart, vEnd, hStart, hEnd;
+  if(vScanDir > 0)
+  {
+    vStart = 0;
+    vEnd = height - 1;
+  }
+  else
+  {
+    vStart = height - 1;
+    vEnd = 0;
+  }
+
+  if(hScanDir > 0)
+  {
+    hStart = 0;
+    hEnd = width - 1;
+  }
+  else
+  {
+    hStart = width - 1;
+    hEnd = 0;
+  }
+
+  // output is always top->bottom, left->right, so:
+  var row = 0, col;
+  for(var i = vStart; i != vEnd; i += vScanDir)
+  {
+    col = 0;
+    for(var j = hStart; j != hEnd; j += hScanDir)
+    {
+      read(dataview, offset, i * width + j, pixels, row * width + col++);
+    }
+    row++;
+  }
+
+  return pixels;
+};
+
+TGA.readImage = function(tga)
+{
+  if(tga.header.compressed)
+  {
+    return TGA.readRLEImage(tga);
+  }
+  else
+  {
+    if(tga.header.mapType === 0) // not color mapped:
+    {
+      return TGA.readTruecolorImage(tga);
+    }
+    else if(tga.header.mapType === 1) // color mapped
+    {
+      return TGA.readColormappedImage(tga);
+    }
+    else
+    {
+      throw 'Unsupported map type';
+    }
+  }
 };
 
 // Base function.

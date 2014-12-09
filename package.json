@@ -1,6 +1,6 @@
 {
   "name": "libtga",
-  "version": "0.0.0",
+  "version": "0.2.0",
   "main": "dist/libtga.min.js",
   "description": "Javascript library for reading .tga files",
   "repository": {
