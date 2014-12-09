@@ -432,7 +432,7 @@ var libtga = {
 
 
 // Version.
-libtga.VERSION = '0.1.0';
+libtga.VERSION = '0.2.1';
 
 
 // Export to the root, which is probably `window`.
