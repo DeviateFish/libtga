@@ -286,22 +286,22 @@ TGA.readColormappedImage = function(tga)
   if(vScanDir > 0)
   {
     vStart = 0;
-    vEnd = height - 1;
+    vEnd = height;
   }
   else
   {
-    vStart = height - 1;
+    vStart = height;
     vEnd = 0;
   }
 
   if(hScanDir > 0)
   {
     hStart = 0;
-    hEnd = width - 1;
+    hEnd = width;
   }
   else
   {
-    hStart = width - 1;
+    hStart = width;
     hEnd = 0;
   }
 
@@ -312,7 +312,7 @@ TGA.readColormappedImage = function(tga)
     col = 0;
     for(var j = hStart; j != hEnd; j += hScanDir)
     {
-      read(dataview, colorMap, mapOffset, offset, i * width + j, pixels, row * width + col++);
+      read(dataview, colorMap, mapOffset, offset, (i - 1) * width + (j - 1), pixels, row * width + col++);
     }
     row++;
   }
@@ -357,22 +357,22 @@ TGA.readTruecolorImage = function(tga)
   if(vScanDir > 0)
   {
     vStart = 0;
-    vEnd = height - 1;
+    vEnd = height;
   }
   else
   {
-    vStart = height - 1;
+    vStart = height;
     vEnd = 0;
   }
 
   if(hScanDir > 0)
   {
     hStart = 0;
-    hEnd = width - 1;
+    hEnd = width;
   }
   else
   {
-    hStart = width - 1;
+    hStart = width;
     hEnd = 0;
   }
 
@@ -383,7 +383,7 @@ TGA.readTruecolorImage = function(tga)
     col = 0;
     for(var j = hStart; j != hEnd; j += hScanDir)
     {
-      read(dataview, offset, i * width + j, pixels, row * width + col++);
+      read(dataview, offset, (i - 1) * width + (j - 1), pixels, row * width + col++);
     }
     row++;
   }
@@ -437,11 +437,12 @@ var libtga = {
 
 
 // Version.
-libtga.VERSION = '0.1.0';
+libtga.VERSION = '0.2.2';
 
 
 // Export to the root, which is probably `window`.
 root.libtga = libtga;
+
 
 }(this));
 
