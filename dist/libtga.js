@@ -290,8 +290,8 @@ TGA.readColormappedImage = function(tga)
   }
   else
   {
-    vStart = height;
-    vEnd = 0;
+    vStart = height - 1;
+    vEnd = -1;
   }
 
   if(hScanDir > 0)
@@ -301,8 +301,8 @@ TGA.readColormappedImage = function(tga)
   }
   else
   {
-    hStart = width;
-    hEnd = 0;
+    hStart = width - 1;
+    hEnd = -1;
   }
 
   // output is always top->bottom, left->right, so:
@@ -312,7 +312,7 @@ TGA.readColormappedImage = function(tga)
     col = 0;
     for(var j = hStart; j != hEnd; j += hScanDir)
     {
-      read(dataview, colorMap, mapOffset, offset, (i - 1) * width + (j - 1), pixels, row * width + col++);
+      read(dataview, colorMap, mapOffset, offset, i * width + j, pixels, row * width + col++);
     }
     row++;
   }
@@ -361,8 +361,8 @@ TGA.readTruecolorImage = function(tga)
   }
   else
   {
-    vStart = height;
-    vEnd = 0;
+    vStart = height - 1;
+    vEnd = -1;
   }
 
   if(hScanDir > 0)
@@ -372,8 +372,8 @@ TGA.readTruecolorImage = function(tga)
   }
   else
   {
-    hStart = width;
-    hEnd = 0;
+    hStart = width - 1;
+    hEnd = -1;
   }
 
   // output is always top->bottom, left->right, so:
@@ -383,7 +383,7 @@ TGA.readTruecolorImage = function(tga)
     col = 0;
     for(var j = hStart; j != hEnd; j += hScanDir)
     {
-      read(dataview, offset, (i - 1) * width + (j - 1), pixels, row * width + col++);
+      read(dataview, offset, i * width + j, pixels, row * width + col++);
     }
     row++;
   }
