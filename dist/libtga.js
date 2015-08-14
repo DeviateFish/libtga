@@ -400,7 +400,7 @@
       xhr.send();
     },
     TGA: TGA,
-    VERSION: '0.3.0'
+    VERSION: '0.3.1'
   };
 
   module.exports = libtga;
