@@ -1,49 +1,49 @@
 /* libtga main */
 
-var XMLHttpRequest = root.XMLHttpRequest || null;
+const HEADER_SIZE = 18;
 
-// constants and such:
-var HEADER_SIZE = 18,
+// image types: is bitfield-ish
+const IMAGE_TYPE_NONE = 0|0;
+const IMAGE_TYPE_COLORMAPPED = 1|0;
+const IMAGE_TYPE_TRUECOLOR = 2|0;
+const IMAGE_TYPE_GREYSCALE = 3|0;
 
-  // image types: is bitfield-ish
-  IMAGE_TYPE_NONE = 0|0,
-  IMAGE_TYPE_COLORMAPPED = 1|0,
-  IMAGE_TYPE_TRUECOLOR = 2|0,
-  IMAGE_TYPE_GREYSCALE = 3|0,
+// compression flag:
+const IMAGE_RUNLENGTH_ENCODED = 0x8|0;
 
-  // compression flag:
-  IMAGE_RUNLENGTH_ENCODED = 0x8|0,
+// color maps (documented on wikipedia; but not in the spec?):
+/*const COLOR_MAP_NONE = 0|0;
+const COLOR_MAP_EXISTS = 1|0;
+const COLOR_MAP_TRUEVISION_START = 2|0;
+const COLOR_MAP_TRUEVISION_END = 127|0;
+const COLOR_MAP_DEV_START = 128|0;
+const COLOR_MAP_DEV_END = 255|0;*/
 
-  // color maps (documented on wikipedia, but not in the spec?):
-  /*COLOR_MAP_NONE = 0|0,
-  COLOR_MAP_EXISTS = 1|0,
-  COLOR_MAP_TRUEVISION_START = 2|0,
-  COLOR_MAP_TRUEVISION_END = 127|0,
-  COLOR_MAP_DEV_START = 128|0,
-  COLOR_MAP_DEV_END = 255|0,*/
+// image descriptor constants:
+const IMAGE_DESCRIPTOR_ATTRIBUTE_MASK = 0xf;
+const IMAGE_DESCRIPTOR_ORIGIN_MASK = 0x30;
+const IMAGE_DESCRIPTOR_INTERLEAVE_MASK = 0xc0;
 
-  // image descriptor constants:
-  IMAGE_DESCRIPTOR_ATTRIBUTE_MASK = 0xf,
-  IMAGE_DESCRIPTOR_ORIGIN_MASK = 0x30,
-  IMAGE_DESCRIPTOR_INTERLEAVE_MASK = 0xc0,
+// Origin values:
+const IMAGE_ORIGIN_VERTICAL_MASK = 0x02;
+const IMAGE_ORIGIN_HORIZONTAL_MASK = 0x01;
+const IMAGE_ORIGIN_TOP = 0x02;
+const IMAGE_ORIGIN_RIGHT = 0x01;
 
-  // Origin values:
-  IMAGE_ORIGIN_VERTICAL_MASK = 0x02,
-  IMAGE_ORIGIN_HORIZONTAL_MASK = 0x01,
-  IMAGE_ORIGIN_TOP = 0x02,
-  IMAGE_ORIGIN_RIGHT = 0x01;
+class TGA {
 
-var TGA = function(arraybuf)
-{
-  this.dataview = new DataView(arraybuf);
-  this.header = TGA.readHeader(this.dataview);
-  this.width = this.header.imageSpec.width;
-  this.height = this.header.imageSpec.height;
-  this.compressed = !!(this.header.imageType & IMAGE_RUNLENGTH_ENCODED);
-  this.imageId = TGA.readImageId(this.dataview, this.header);
-  this.colorMap = TGA.readColorMap(this.dataview, this.header);
-  this.imageData = TGA.readImage(this);
-};
+  constructor(arraybuf)
+  {
+    this.dataview = new DataView(arraybuf);
+    this.header = TGA.readHeader(this.dataview);
+    this.width = this.header.imageSpec.width;
+    this.height = this.header.imageSpec.height;
+    this.compressed = !!(this.header.imageType & IMAGE_RUNLENGTH_ENCODED);
+    this.imageId = TGA.readImageId(this.dataview, this.header);
+    this.colorMap = TGA.readColorMap(this.dataview, this.header);
+    this.imageData = TGA.readImage(this);
+  }
+}
 
 // add constant refs here:
 TGA.HEADER_SIZE = HEADER_SIZE;
@@ -230,9 +230,8 @@ TGA.readMappedPixel32 = function(input, map, mapOffset, offset, i, output, j)
   output[j * 4 + 3] = map[index * 4 + 3]; // alpha
 };
 
-TGA.readRLEImage = function(tga)
+TGA.readRLEImage = function(/*tga*/)
 {
-  console.log(tga.dataview, tga.header);
   throw 'NYI';
 };
 
@@ -427,13 +426,8 @@ var libtga = {
 
     xhr.send();
   },
-  TGA: TGA
+  TGA: TGA,
+  VERSION: '0.3.0'
 };
 
-
-// Version.
-libtga.VERSION = '0.2.3';
-
-
-// Export to the root, which is probably `window`.
-root.libtga = libtga;
+export default libtga;

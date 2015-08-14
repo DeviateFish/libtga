@@ -1,66 +1,105 @@
+'use strict';
+var LIVERELOAD_PORT = 35729;
+var lrSnippet = require('connect-livereload')({port: LIVERELOAD_PORT});
+var mountFolder = function (connect, dir) {
+  return connect.static(require('path').resolve(dir));
+};
+
 module.exports = function(grunt) {
+  require('time-grunt')(grunt);
+  require('load-grunt-tasks')(grunt);
 
   grunt.initConfig({
 
     pkg: grunt.file.readJSON('package.json'),
 
-    concat: {
+    babel: {
       options: {
-        separator: "\n\n",
-        sourceMap: true
+        sourceMap: true,
+        modules: 'umd'
       },
       dist: {
-        src: [
-          'src/_intro.js',
-          'src/main.js',
-          'src/_outro.js'
-        ],
-        dest: 'dist/<%= pkg.name.replace(".js", "") %>.js'
+        files: {
+          'dist/libtga.js': 'src/libtga.js'
+        }
       }
     },
 
     uglify: {
       options: {
-        banner: '/*! <%= pkg.name.replace(".js", "") %> <%= grunt.template.today("dd-mm-yyyy") %> */\n',
+        banner: '/*! libtga <%= grunt.template.today("dd-mm-yyyy") %> */\n',
         sourceMap: true
       },
       dist: {
         files: {
-          'dist/<%= pkg.name.replace(".js", "") %>.min.js': ['<%= concat.dist.dest %>']
+          'dist/libtga.min.js': ['dist/libtga.js']
         }
       }
     },
 
-    qunit: {
-      files: ['test/*.html']
-    },
-
     jshint: {
-      files: ['dist/libtga.js'],
+      files: ['src/libtga.js'],
       options: {
         globals: {
-          console: true,
-          module: true,
-          document: true
         },
         jshintrc: '.jshintrc'
       }
     },
 
     watch: {
-      files: ['<%= jshint.files %>'],
-      tasks: ['concat', 'jshint', 'qunit']
+      options: {
+        nospawn: true,
+        livereload: { liveCSS: false }
+      },
+      livereload: {
+        options: {
+          livereload: true
+        },
+        files: [
+          './demo/**/*',
+          './dist/libtga.js'
+        ]
+      },
+      js: {
+        files: ['./src/libtga.js'],
+        tasks: ['build']
+      }
+    },
+    connect: {
+      options: {
+        port: 9005,
+        // change this to '0.0.0.0' to access the server from outside
+        hostname: '0.0.0.0'
+      },
+      livereload: {
+        options: {
+          middleware: function (connect) {
+            return [
+              lrSnippet,
+              mountFolder(connect, './'),
+            ];
+          }
+        }
+      }
     }
 
   });
 
-  grunt.loadNpmTasks('grunt-contrib-uglify');
-  grunt.loadNpmTasks('grunt-contrib-jshint');
-  grunt.loadNpmTasks('grunt-contrib-qunit');
-  grunt.loadNpmTasks('grunt-contrib-watch');
-  grunt.loadNpmTasks('grunt-contrib-concat');
+  grunt.registerTask('serve', function (target) {
+    grunt.task.run([
+      'connect:livereload',
+      'watch'
+    ]);
+  });
 
-  grunt.registerTask('test', ['jshint', 'qunit']);
-  grunt.registerTask('default', ['concat', 'jshint', 'qunit', 'uglify']);
+  grunt.registerTask('build', [
+    'jshint',
+    'babel',
+    'uglify'
+  ]);
 
+  grunt.registerTask('default', [
+    'build',
+    'serve'
+  ]);
 };
