@@ -3,19 +3,11 @@
   <head>
     <title>libtga demo</title>
     <link rel="stylesheet" href="./assets/normalize.css" />
-    <link rel="stylesheet" href="./assets/main.css" />
-    <style>
-      /* begin demo embedded styles */
-
-      /* end demo embedded styles */
-    </style>
   </head>
   <body>
     <h1>libtga demo</h1>
 
-    <!-- begin demo markup -->
     <canvas id="screen"></canvas>
-    <!-- end demo markup -->
 
     <p>Check out the <a href="https://github.com/DeviateFish/libtga">project repo</a>.
     <p>Copyright 2014 Daniel Benton</p>
@@ -23,7 +15,6 @@
     <script src="./../dist/libtga.js"></script>
 
     <script>
-      /* begin demo script */
       var showFile = function(filename) {
         libtga.loadFile(filename, function(err, img){
           if(err) throw err;
@@ -39,7 +30,6 @@
       };
 
       showFile('/objectXMTexture.tga');
-      /* end demo script */
     </script>
   </body>
 </html>
